@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Saídas - RSB Porto</title>
+    <style>
+        body { font-family: Arial; margin: 0; background: #f5f5f5; text-align: center; display: flex; align-items: center; justify-content: center; height: 100vh; }
+        .container { background: #fff; padding: 20px; width: 100%; max-width: 800px; border-radius: 10px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        th, td { border: 1px solid #ddd; padding: 8px; }
+        th { background: #f0f0f0; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Saídas - RSB Porto</h1>
+        <div><strong>Data/Hora (Porto):</strong> <span id="current-time"></span></div>
+        <div><strong>Clima Atual:</strong> <span id="weather-info">Carregando...</span></div>
+        <table>
+            <thead><tr><th>Morada</th><th>Serviço</th><th>Código</th></tr></thead>
+            <tbody id="sheet-data"><tr><td colspan="3">Carregando dados...</td></tr></tbody>
+        </table>
+        <div id="dynamic-value">Avarias: Carregando...</div>
+        <div style="font-size: 12px; margin-top: 10px;">Última atualização: <span id="last-update"></span></div>
+    </div>
+
+<script>
+const API_BASE = 'https://rsb-porto-api.onrender.com';
+
+function updateDateTime() {
+    const now = new Date();
+    const portoTime = now.toLocaleString('pt-PT', { timeZone: 'Europe/Lisbon' });
+    document.getElementById('current-time').textContent = portoTime;
+}
+setInterval(updateDateTime, 1000);
+updateDateTime();
+
+async function fetchWeather() {
+    try {
+        const res = await fetch(`${API_BASE}/weather`);
+        const data = await res.json();
+        if (data.main) {
+            document.getElementById('weather-info').textContent =
+                `Temperatura: ${data.main.temp}°C | ${data.weather[0].description}`;
+        }
+    } catch {
+        document.getElementById('weather-info').textContent = 'Erro ao carregar clima';
+    }
+}
+
+async function fetchSheetData() {
+    try {
+        const res = await fetch(`${API_BASE}/sheet-data`);
+        const data = await res.json();
+        const rows = data.values || [];
+        const tableBody = document.getElementById('sheet-data');
+        tableBody.innerHTML = '';
+        const rowsToShow = [3, 11, 19];
+        const origin = "Quartel dos Bombeiros Sapadores do Porto";
+
+        rowsToShow.forEach(i => {
+            if (rows[i]) {
+                const [address,, service, code] = rows[i];
+                const maps = `https://www.google.com/maps/dir/${encodeURIComponent(origin)}/${encodeURIComponent(address + ", Porto, Portugal")}`;
+                tableBody.innerHTML += `<tr><td><a href="${maps}" target="_blank">${address}</a></td><td>${service}</td><td>${code}</td></tr>`;
+            }
+        });
+
+        const avarias = rows[26]?.[1] || 'N/A';
+        document.getElementById('dynamic-value').textContent = `Avarias: ${avarias}`;
+    } catch {
+        document.getElementById('sheet-data').innerHTML = '<tr><td colspan="3">Erro ao carregar</td></tr>';
+    }
+
+    document.getElementById('last-update').textContent =
+        new Date().toLocaleTimeString('pt-PT', { timeZone: 'Europe/Lisbon' });
+}
+
+fetchWeather();
+fetchSheetData();
+setInterval(fetchSheetData, 10000);
+setInterval(fetchWeather, 600000);
+</script>
+</body>
+</html>
